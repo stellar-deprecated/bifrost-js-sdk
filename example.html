@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Bifrost Demo</title>
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  <style type="text/css">
+    body {
+      background-color: #CFEFF8;
+    }
+
+    .container {
+      background-color: #ffffff;
+      width: 600px;
+      text-align: center;
+      padding: 50px;
+      margin-top: 50px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.3);
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <p class="lead">Send Ropsten <strong>testnet</strong> ETH to the following address:</p>
+  <pre id="address">Loading...</pre>
+  <p><strong>Do not send real ETH!</strong></p>
+  <p>Exchange rate: 1 ETH = 1 TOKE token</p>
+  <p><a href="https://github.com/stellar/go/pull/81" target="_blank">Instructions</a></p>
+  <hr />
+  <div class="progress">
+    <div id="progressbar" class="progress-bar progress-bar-striped active" style="width: 0%"></div>
+  </div>
+  <p class="lead" id="status">Generating keys...</p>
+</div>
+
+<script src="./dist/bifrost.js"></script>
+<script type="text/javascript">
+  var params = {
+    network: 'test',
+    horizonURL: 'https://horizon-testnet.stellar.org',
+    bifrostURL: 'http://localhost:8000',
+    assetCode: 'TOKE',
+    price: '1',
+    issuingPublicKey: 'GDGVTKSEXWB4VFTBDWCBJVJZLIY6R3766EHBZFIGK2N7EQHVV5UTA63C',
+  };
+
+  var session = new Bifrost.Session(params);
+  session.startEthereum(onEvent).then(address => {
+    setStatus("Waiting for a transaction...", 10);
+    document.getElementById("address").innerText = address;
+  })
+
+  function onEvent(event, data) {
+    if (event == Bifrost.TransactionReceivedEvent) {
+      setStatus("Transaction received, creating account...", 20)
+    } else if (event == Bifrost.AccountCreatedEvent) {
+      setStatus("Account created, creating trust lines...", 40)
+    } else if (event == Bifrost.TrustLinesCreatedEvent) {
+      setStatus("Trust lines created, waiting for tokens...", 60)
+    } else if (event == Bifrost.AccountCreditedEvent) {
+      setStatus("Account credited, exchanging...", 80)
+    } else if (event == Bifrost.PurchasedEvent) {
+      setStatus("Congrats! TOKE purchased. Your Stellar keys: <pre>Public key: "+data.publicKey+"\nSecret key: "+data.secret+"</pre>", 100);
+    }
+  }
+
+  function setStatus(text, progress) {
+    var progressbar = document.getElementById("progressbar")
+    progressbar.style.width = progress+"%";
+    if (progress == 100) {
+      progressbar.className = "progress-bar progress-bar-success";
+    }
+    document.getElementById("status").innerHTML = text;
+  }
+</script>
+</body>
+</html>
