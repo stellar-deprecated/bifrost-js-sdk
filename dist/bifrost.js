@@ -768,7 +768,7 @@ var Bifrost =
 	    } else {
 	      _stellarSdk.Network.usePublicNetwork();
 	    }
-	    this.stated = false;
+	    this.started = false;
 	  }
 
 	  _createClass(Session, [{
@@ -789,7 +789,7 @@ var Bifrost =
 	      if (this.started) {
 	        throw new Error("Session already started");
 	      }
-	      this.stated = true;
+	      this.started = true;
 
 	      var keypair = _stellarSdk.Keypair.random();
 	      return new _bluebird2['default'](function (resolve, reject) {
@@ -812,11 +812,8 @@ var Bifrost =
 	            _this._onAccountCredited(onEvent, keypair, JSON.parse(e.data));
 	            source.close();
 	          }, false);
-	          source.addEventListener('open', function (e) {
-	            return console.log("Opened");
-	          }, false);
 	          source.addEventListener('error', function (e) {
-	            return console.log("Error");
+	            return console.error(e);
 	          }, false);
 	        })['catch'](reject);
 	      });
@@ -857,7 +854,6 @@ var Bifrost =
 	      var amount = _ref.amount;
 
 	      onEvent(AccountCreditedEvent);
-
 	      // Buy asset
 	      this.horizon.loadAccount(keypair.publicKey()).then(function (sourceAccount) {
 	        var transaction = new _stellarSdk.TransactionBuilder(sourceAccount).addOperation(_stellarSdk.Operation.manageOffer({

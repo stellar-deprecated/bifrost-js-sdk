@@ -56,8 +56,7 @@ export class Session {
             this._onAccountCredited(onEvent, keypair, JSON.parse(e.data));
             source.close();
           }, false);
-          source.addEventListener('open', e => console.log("Opened"), false);
-          source.addEventListener('error', e => console.log("Error"), false);
+          source.addEventListener('error', e => console.error(e), false);
         })
         .catch(reject);
     });
