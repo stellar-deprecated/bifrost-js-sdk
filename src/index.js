@@ -1,6 +1,6 @@
 import axios from 'axios';
 import Promise from 'bluebird'; // IE11
-import {Asset, Keypair, Network, Operation, Server as HorizonServer, TransactionBuilder, StrKey} from 'stellar-sdk';
+import {Account, Asset, Keypair, Network, Operation, Server as HorizonServer, TransactionBuilder, StrKey} from 'stellar-sdk';
 
 export const TransactionReceivedEvent = "transaction_received"
 export const AccountCreatedEvent = "account_created"
@@ -37,23 +37,23 @@ export class Session {
       throw new Error("Session already started");
     }
     this.started = true;
+    this.keypair = Keypair.random();
 
-    var keypair = Keypair.random();
     return new Promise((resolve, reject) => {
-      axios.post(`${this.params.bifrostURL}/generate-${chain}-address`, `stellar_public_key=${keypair.publicKey()}`)
+      axios.post(`${this.params.bifrostURL}/generate-${chain}-address`, `stellar_public_key=${this.keypair.publicKey()}`)
         .then(response => {
           if (response.data.chain != chain) {
             return reject("Invalid chain");
           }
 
           var address = response.data.address;
-          resolve(address);
+          resolve({address: address, keypair: this.keypair});
 
           var source = new EventSource(`${this.params.bifrostURL}/events?stream=${address}`);
           source.addEventListener('transaction_received', e => onEvent(TransactionReceivedEvent), false);
-          source.addEventListener('account_created', e => this._onAccountCreated(onEvent, keypair, chain), false);
+          source.addEventListener('account_created', e => this._onAccountCreated(onEvent, chain), false);
           source.addEventListener('account_credited', e => {
-            this._onAccountCredited(onEvent, keypair, JSON.parse(e.data));
+            this._onAccountCredited(onEvent, JSON.parse(e.data));
             source.close();
           }, false);
           source.addEventListener('error', e => console.error(e), false);
@@ -62,7 +62,7 @@ export class Session {
     });
   }
 
-  _onAccountCreated(onEvent, keypair, chain) {
+  _onAccountCreated(onEvent, chain) {
     onEvent(AccountCreatedEvent);
 
     let chainAssetCode;
@@ -73,8 +73,10 @@ export class Session {
     }
 
     // Create trust lines
-    this.horizon.loadAccount(keypair.publicKey())
+    this.horizon.loadAccount(this.keypair.publicKey())
       .then(sourceAccount => {
+        this._onAccountCreatedRecoveryTransactions(sourceAccount.sequenceNumber(), chainAssetCode);
+
         var transaction = new TransactionBuilder(sourceAccount)
           .addOperation(Operation.changeTrust({
             asset: new Asset(chainAssetCode, this.params.issuingPublicKey)
@@ -83,18 +85,20 @@ export class Session {
             asset: new Asset(this.params.assetCode, this.params.issuingPublicKey)
           }))
           .build();
-        transaction.sign(keypair);
+        transaction.sign(this.keypair);
         return this.horizon.submitTransaction(transaction);
       }).then(function() {
         onEvent(TrustLinesCreatedEvent);
       })
   }
 
-  _onAccountCredited(onEvent, keypair, {assetCode, amount}) {
+  _onAccountCredited(onEvent, {assetCode, amount}) {
     onEvent(AccountCreditedEvent);
     // Buy asset
-    this.horizon.loadAccount(keypair.publicKey())
+    this.horizon.loadAccount(this.keypair.publicKey())
       .then(sourceAccount => {
+        this._onAccountCreditedRecoveryTransactions(sourceAccount.sequenceNumber(), assetCode, amount);
+
         var transaction = new TransactionBuilder(sourceAccount)
           .addOperation(Operation.manageOffer({
             selling: new Asset(assetCode, this.params.issuingPublicKey),
@@ -103,9 +107,107 @@ export class Session {
             price: this.params.price
           }))
           .build();
-        transaction.sign(keypair);
+        transaction.sign(this.keypair);
         return this.horizon.submitTransaction(transaction);
-      }).then(() => onEvent(PurchasedEvent, {publicKey: keypair.publicKey(), secret: keypair.secret()}));
+      })
+      .then(() => this.horizon.loadAccount(this.keypair.publicKey()))
+      .then(account => {
+        this._onPurchasedRecoveryTransactions(account);
+        onEvent(PurchasedEvent)
+      });
+  }
+
+  _onAccountCreatedRecoveryTransactions(currentSequenceNumber, chainAssetCode) {
+    var account = new Account(this.keypair.publicKey(), currentSequenceNumber);
+
+    // Fail after account creation and before change_trust
+    var transaction = new TransactionBuilder(account)
+      .addOperation(Operation.accountMerge({
+        destination: this.params.issuingPublicKey
+      }))
+      .build();
+    transaction.sign(this.keypair);
+    this._submitRecovery(transaction);
+
+    // Fail after change_trust and before BTC/ETH receive
+    transaction = new TransactionBuilder(account)
+      .addOperation(Operation.changeTrust({
+        asset: new Asset(chainAssetCode, this.params.issuingPublicKey),
+        limit: "0"
+      }))
+      .addOperation(Operation.changeTrust({
+        asset: new Asset(this.params.assetCode, this.params.issuingPublicKey),
+        limit: "0"
+      }))
+      .addOperation(Operation.accountMerge({
+        destination: this.params.issuingPublicKey
+      }))
+      .build();
+    transaction.sign(this.keypair);
+    this._submitRecovery(transaction);
+  }
+
+  _onAccountCreditedRecoveryTransactions(currentSequenceNumber, chainAssetCode, amount) {
+    // Fail after change_trust and BTC/ETH received
+    var account = new Account(this.keypair.publicKey(), currentSequenceNumber);
+    var transaction = new TransactionBuilder(account)
+      .addOperation(Operation.payment({
+        destination: this.params.issuingPublicKey,
+        asset: new Asset(chainAssetCode, this.params.issuingPublicKey),
+        amount: amount
+      }))
+      .addOperation(Operation.changeTrust({
+        asset: new Asset(chainAssetCode, this.params.issuingPublicKey),
+        limit: "0"
+      }))
+      .addOperation(Operation.changeTrust({
+        asset: new Asset(this.params.assetCode, this.params.issuingPublicKey),
+        limit: "0"
+      }))
+      .addOperation(Operation.accountMerge({
+        destination: this.params.issuingPublicKey
+      }))
+      .build();
+    transaction.sign(this.keypair);
+    this._submitRecovery(transaction);
+  }
+
+  _onPurchasedRecoveryTransactions(account) {
+    var transactionBuilder = new TransactionBuilder(account);
+
+    // Send back assets and remove trust lines
+    for (var balance of account.balances) {
+      if (balance.asset_type == "native") {
+        continue;
+      }
+
+      if (balance.balance != "0.0000000") {
+        transactionBuilder.addOperation(Operation.payment({
+          destination: this.params.issuingPublicKey,
+          asset: new Asset(balance.asset_code, balance.asset_issuer),
+          amount: balance.balance
+        }));
+      }
+
+      transactionBuilder.addOperation(Operation.changeTrust({
+        asset: new Asset(balance.asset_code, balance.asset_issuer),
+        limit: "0"
+      }));
+    }
+
+    transactionBuilder.addOperation(Operation.accountMerge({
+      destination: this.params.issuingPublicKey
+    }));
+
+    var transaction = transactionBuilder.build();
+    transaction.sign(this.keypair);
+    this._submitRecovery(transaction);
+  }
+
+  _submitRecovery(transaction) {
+    var envelope = transaction.toEnvelope().toXDR().toString("base64");
+    var envelopeEncoded = encodeURIComponent(envelope);
+    return axios.post(`${this.params.bifrostURL}/recovery-transaction`, `transaction_xdr=${envelopeEncoded}`);
   }
 
   _checkParams(params) {

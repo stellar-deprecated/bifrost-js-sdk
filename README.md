@@ -41,13 +41,15 @@ var session = new Bifrost.Session(params);
 
 ### `Bifrost.Session.startBitcoin(onEvent) => Promise`
 
-Starts Bitcoin session and returns a promise that resolves with Bitcoin address where to send funds.
+Starts Bitcoin session and returns a promise that resolves with Bitcoin address where to send funds and Stellar keypair.
 
 Example:
 ```js
-session.startBitcoin(onEvent).then(address => {
+session.startBitcoin(onEvent).then({address, keypair} => {
   document.getElementById("address").innerText = "Waiting for a transaction...";
   document.getElementById("address").innerText = address;
+  document.getElementById("public-key").innerText = keypair.publicKey();
+  document.getElementById("secret").innerText = keypair.secret();
 })
 ```
 
@@ -55,32 +57,30 @@ session.startBitcoin(onEvent).then(address => {
 
 ### `Bifrost.Session.startEthereum(onEvent) => Promise`
 
-Starts Ethereum session and returns a promise that resolves with Ethereum address where to send funds.
+Starts Ethereum session and returns a promise that resolves with Ethereum address where to send funds and Stellar keypair.
 
 Example:
 ```js
-session.startEthereum(onEvent).then(address => {
+session.startEthereum(onEvent).then({address, keypair} => {
   document.getElementById("address").innerText = "Waiting for a transaction...";
   document.getElementById("address").innerText = address;
+  document.getElementById("public-key").innerText = keypair.publicKey();
+  document.getElementById("secret").innerText = keypair.secret();
 })
 ```
 
 `onEvent` description can be found in the section below.
 
-### `onEvent(event, data)`
+### `onEvent(event)`
 
-`onEvent` function you pass to `startBitcoin` or `startEthereum` function accepts two parameters:
-* `event` - one of the events described below
-* `data` - object with data connected to the event.
+`onEvent` function you pass to `startBitcoin` or `startEthereum` function accepts one parameter `event` described below:
 
-`eventName` can be one of the following:
-
-`event` | `data` | Description
+`event` | Description
 -|-|-
-`Bifrost.AccountCreatedEvent` | - | Sent when account is created
-`Bifrost.TrustLinesCreatedEvent` | - | Sent when trust line is created
-`Bifrost.AccountCreditedEvent` | - | Sent when account is credited
-`Bifrost.PurchasedEvent` | `publicKey`, `secret` | Sent when token is purchased and reveals account key pair
+`Bifrost.AccountCreatedEvent` | Sent when account is created
+`Bifrost.TrustLinesCreatedEvent` | Sent when trust line is created
+`Bifrost.AccountCreditedEvent` | Sent when account is credited
+`Bifrost.PurchasedEvent` | Sent when token is purchased
 
 Example:
 ```js
@@ -94,7 +94,7 @@ function onEvent(event, data) {
   } else if (event == Bifrost.AccountCreditedEvent) {
     setStatus("Account credited, exchanging...");
   } else if (event == Bifrost.PurchasedEvent) {
-    setStatus("Congrats! TOKE purchased. Your Stellar keys: <pre>Public key: "+data.publicKey+"\nSecret key: "+data.secret+"</pre>");
+    setStatus("Congrats! TOKE purchased.");
   }
 }
 ```

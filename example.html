@@ -46,12 +46,14 @@
   };
 
   var session = new Bifrost.Session(params);
-  session.startEthereum(onEvent).then(address => {
+  var keypair;
+  session.startEthereum(onEvent).then(params => {
     setStatus("Waiting for a transaction...", 10);
-    document.getElementById("address").innerText = address;
+    document.getElementById("address").innerText = params.address;
+    keypair = params.keypair;
   })
 
-  function onEvent(event, data) {
+  function onEvent(event) {
     if (event == Bifrost.TransactionReceivedEvent) {
       setStatus("Transaction received, creating account...", 20)
     } else if (event == Bifrost.AccountCreatedEvent) {
@@ -61,7 +63,7 @@
     } else if (event == Bifrost.AccountCreditedEvent) {
       setStatus("Account credited, exchanging...", 80)
     } else if (event == Bifrost.PurchasedEvent) {
-      setStatus("Congrats! TOKE purchased. Your Stellar keys: <pre>Public key: "+data.publicKey+"\nSecret key: "+data.secret+"</pre>", 100);
+      setStatus("Congrats! TOKE purchased. Your Stellar keys: <pre>Public key: "+keypair.publicKey()+"\nSecret key: "+keypair.secret()+"</pre>", 100);
     }
   }
 

@@ -790,26 +790,26 @@ var Bifrost =
 	        throw new Error("Session already started");
 	      }
 	      this.started = true;
+	      this.keypair = _stellarSdk.Keypair.random();
 
-	      var keypair = _stellarSdk.Keypair.random();
 	      return new _bluebird2['default'](function (resolve, reject) {
-	        _axios2['default'].post(_this.params.bifrostURL + '/generate-' + chain + '-address', 'stellar_public_key=' + keypair.publicKey()).then(function (response) {
+	        _axios2['default'].post(_this.params.bifrostURL + '/generate-' + chain + '-address', 'stellar_public_key=' + _this.keypair.publicKey()).then(function (response) {
 	          if (response.data.chain != chain) {
 	            return reject("Invalid chain");
 	          }
 
 	          var address = response.data.address;
-	          resolve(address);
+	          resolve({ address: address, keypair: _this.keypair });
 
 	          var source = new EventSource(_this.params.bifrostURL + '/events?stream=' + address);
 	          source.addEventListener('transaction_received', function (e) {
 	            return onEvent(TransactionReceivedEvent);
 	          }, false);
 	          source.addEventListener('account_created', function (e) {
-	            return _this._onAccountCreated(onEvent, keypair, chain);
+	            return _this._onAccountCreated(onEvent, chain);
 	          }, false);
 	          source.addEventListener('account_credited', function (e) {
-	            _this._onAccountCredited(onEvent, keypair, JSON.parse(e.data));
+	            _this._onAccountCredited(onEvent, JSON.parse(e.data));
 	            source.close();
 	          }, false);
 	          source.addEventListener('error', function (e) {
@@ -820,7 +820,7 @@ var Bifrost =
 	    }
 	  }, {
 	    key: '_onAccountCreated',
-	    value: function _onAccountCreated(onEvent, keypair, chain) {
+	    value: function _onAccountCreated(onEvent, chain) {
 	      var _this2 = this;
 
 	      onEvent(AccountCreatedEvent);
@@ -833,13 +833,15 @@ var Bifrost =
 	      }
 
 	      // Create trust lines
-	      this.horizon.loadAccount(keypair.publicKey()).then(function (sourceAccount) {
+	      this.horizon.loadAccount(this.keypair.publicKey()).then(function (sourceAccount) {
+	        _this2._onAccountCreatedRecoveryTransactions(sourceAccount.sequenceNumber(), chainAssetCode);
+
 	        var transaction = new _stellarSdk.TransactionBuilder(sourceAccount).addOperation(_stellarSdk.Operation.changeTrust({
 	          asset: new _stellarSdk.Asset(chainAssetCode, _this2.params.issuingPublicKey)
 	        })).addOperation(_stellarSdk.Operation.changeTrust({
 	          asset: new _stellarSdk.Asset(_this2.params.assetCode, _this2.params.issuingPublicKey)
 	        })).build();
-	        transaction.sign(keypair);
+	        transaction.sign(_this2.keypair);
 	        return _this2.horizon.submitTransaction(transaction);
 	      }).then(function () {
 	        onEvent(TrustLinesCreatedEvent);
@@ -847,7 +849,7 @@ var Bifrost =
 	    }
 	  }, {
 	    key: '_onAccountCredited',
-	    value: function _onAccountCredited(onEvent, keypair, _ref) {
+	    value: function _onAccountCredited(onEvent, _ref) {
 	      var _this3 = this;
 
 	      var assetCode = _ref.assetCode;
@@ -855,18 +857,130 @@ var Bifrost =
 
 	      onEvent(AccountCreditedEvent);
 	      // Buy asset
-	      this.horizon.loadAccount(keypair.publicKey()).then(function (sourceAccount) {
+	      this.horizon.loadAccount(this.keypair.publicKey()).then(function (sourceAccount) {
+	        _this3._onAccountCreditedRecoveryTransactions(sourceAccount.sequenceNumber(), assetCode, amount);
+
 	        var transaction = new _stellarSdk.TransactionBuilder(sourceAccount).addOperation(_stellarSdk.Operation.manageOffer({
 	          selling: new _stellarSdk.Asset(assetCode, _this3.params.issuingPublicKey),
 	          buying: new _stellarSdk.Asset(_this3.params.assetCode, _this3.params.issuingPublicKey),
 	          amount: amount,
 	          price: _this3.params.price
 	        })).build();
-	        transaction.sign(keypair);
+	        transaction.sign(_this3.keypair);
 	        return _this3.horizon.submitTransaction(transaction);
 	      }).then(function () {
-	        return onEvent(PurchasedEvent, { publicKey: keypair.publicKey(), secret: keypair.secret() });
+	        return _this3.horizon.loadAccount(_this3.keypair.publicKey());
+	      }).then(function (account) {
+	        _this3._onPurchasedRecoveryTransactions(account);
+	        onEvent(PurchasedEvent);
 	      });
+	    }
+	  }, {
+	    key: '_onAccountCreatedRecoveryTransactions',
+	    value: function _onAccountCreatedRecoveryTransactions(currentSequenceNumber, chainAssetCode) {
+	      var account = new _stellarSdk.Account(this.keypair.publicKey(), currentSequenceNumber);
+
+	      // Fail after account creation and before change_trust
+	      var transaction = new _stellarSdk.TransactionBuilder(account).addOperation(_stellarSdk.Operation.accountMerge({
+	        destination: this.params.issuingPublicKey
+	      })).build();
+	      transaction.sign(this.keypair);
+	      this._submitRecovery(transaction);
+
+	      // Fail after change_trust and before BTC/ETH receive
+	      transaction = new _stellarSdk.TransactionBuilder(account).addOperation(_stellarSdk.Operation.changeTrust({
+	        asset: new _stellarSdk.Asset(chainAssetCode, this.params.issuingPublicKey),
+	        limit: "0"
+	      })).addOperation(_stellarSdk.Operation.changeTrust({
+	        asset: new _stellarSdk.Asset(this.params.assetCode, this.params.issuingPublicKey),
+	        limit: "0"
+	      })).addOperation(_stellarSdk.Operation.accountMerge({
+	        destination: this.params.issuingPublicKey
+	      })).build();
+	      transaction.sign(this.keypair);
+	      this._submitRecovery(transaction);
+	    }
+	  }, {
+	    key: '_onAccountCreditedRecoveryTransactions',
+	    value: function _onAccountCreditedRecoveryTransactions(currentSequenceNumber, chainAssetCode, amount) {
+	      // Fail after change_trust and BTC/ETH received
+	      var account = new _stellarSdk.Account(this.keypair.publicKey(), currentSequenceNumber);
+	      var transaction = new _stellarSdk.TransactionBuilder(account).addOperation(_stellarSdk.Operation.payment({
+	        destination: this.params.issuingPublicKey,
+	        asset: new _stellarSdk.Asset(chainAssetCode, this.params.issuingPublicKey),
+	        amount: amount
+	      })).addOperation(_stellarSdk.Operation.changeTrust({
+	        asset: new _stellarSdk.Asset(chainAssetCode, this.params.issuingPublicKey),
+	        limit: "0"
+	      })).addOperation(_stellarSdk.Operation.changeTrust({
+	        asset: new _stellarSdk.Asset(this.params.assetCode, this.params.issuingPublicKey),
+	        limit: "0"
+	      })).addOperation(_stellarSdk.Operation.accountMerge({
+	        destination: this.params.issuingPublicKey
+	      })).build();
+	      transaction.sign(this.keypair);
+	      this._submitRecovery(transaction);
+	    }
+	  }, {
+	    key: '_onPurchasedRecoveryTransactions',
+	    value: function _onPurchasedRecoveryTransactions(account) {
+	      var transactionBuilder = new _stellarSdk.TransactionBuilder(account);
+
+	      // Send back assets and remove trust lines
+	      var _iteratorNormalCompletion = true;
+	      var _didIteratorError = false;
+	      var _iteratorError = undefined;
+
+	      try {
+	        for (var _iterator = account.balances[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+	          var balance = _step.value;
+
+	          if (balance.asset_type == "native") {
+	            continue;
+	          }
+
+	          if (balance.balance != "0.0000000") {
+	            transactionBuilder.addOperation(_stellarSdk.Operation.payment({
+	              destination: this.params.issuingPublicKey,
+	              asset: new _stellarSdk.Asset(balance.asset_code, balance.asset_issuer),
+	              amount: balance.balance
+	            }));
+	          }
+
+	          transactionBuilder.addOperation(_stellarSdk.Operation.changeTrust({
+	            asset: new _stellarSdk.Asset(balance.asset_code, balance.asset_issuer),
+	            limit: "0"
+	          }));
+	        }
+	      } catch (err) {
+	        _didIteratorError = true;
+	        _iteratorError = err;
+	      } finally {
+	        try {
+	          if (!_iteratorNormalCompletion && _iterator['return']) {
+	            _iterator['return']();
+	          }
+	        } finally {
+	          if (_didIteratorError) {
+	            throw _iteratorError;
+	          }
+	        }
+	      }
+
+	      transactionBuilder.addOperation(_stellarSdk.Operation.accountMerge({
+	        destination: this.params.issuingPublicKey
+	      }));
+
+	      var transaction = transactionBuilder.build();
+	      transaction.sign(this.keypair);
+	      this._submitRecovery(transaction);
+	    }
+	  }, {
+	    key: '_submitRecovery',
+	    value: function _submitRecovery(transaction) {
+	      var envelope = transaction.toEnvelope().toXDR().toString("base64");
+	      var envelopeEncoded = encodeURIComponent(envelope);
+	      return _axios2['default'].post(this.params.bifrostURL + '/recovery-transaction', 'transaction_xdr=' + envelopeEncoded);
 	    }
 	  }, {
 	    key: '_checkParams',
@@ -884,29 +998,29 @@ var Bifrost =
 	      }
 
 	      var requiredParams = ['bifrostURL', 'horizonURL', 'assetCode', 'price'];
-	      var _iteratorNormalCompletion = true;
-	      var _didIteratorError = false;
-	      var _iteratorError = undefined;
+	      var _iteratorNormalCompletion2 = true;
+	      var _didIteratorError2 = false;
+	      var _iteratorError2 = undefined;
 
 	      try {
-	        for (var _iterator = requiredParams[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-	          var param = _step.value;
+	        for (var _iterator2 = requiredParams[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
+	          var param = _step2.value;
 
 	          if (params[param] == undefined) {
 	            throw new Error('params.' + param + ' required');
 	          }
 	        }
 	      } catch (err) {
-	        _didIteratorError = true;
-	        _iteratorError = err;
+	        _didIteratorError2 = true;
+	        _iteratorError2 = err;
 	      } finally {
 	        try {
-	          if (!_iteratorNormalCompletion && _iterator['return']) {
-	            _iterator['return']();
+	          if (!_iteratorNormalCompletion2 && _iterator2['return']) {
+	            _iterator2['return']();
 	          }
 	        } finally {
-	          if (_didIteratorError) {
-	            throw _iteratorError;
+	          if (_didIteratorError2) {
+	            throw _iteratorError2;
 	          }
 	        }
 	      }
