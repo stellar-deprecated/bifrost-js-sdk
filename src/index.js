@@ -7,6 +7,7 @@ export const AccountCreatedEvent = "account_created"
 export const TrustLinesCreatedEvent = "trust_lines_created"
 export const AccountCreditedEvent = "account_credited"
 export const PurchasedEvent = "purchased"
+export const ErrorEvent = "purchased"
 
 const ChainBitcoin = 'bitcoin';
 const ChainEthereum = 'ethereum';
@@ -90,6 +91,7 @@ export class Session {
       }).then(function() {
         onEvent(TrustLinesCreatedEvent);
       })
+      .catch(e => onEvent(ErrorEvent, e));
   }
 
   _onAccountCredited(onEvent, {assetCode, amount}) {
@@ -114,7 +116,8 @@ export class Session {
       .then(account => {
         this._onPurchasedRecoveryTransactions(account);
         onEvent(PurchasedEvent)
-      });
+      })
+      .catch(e => onEvent(ErrorEvent, e));
   }
 
   _onAccountCreatedRecoveryTransactions(currentSequenceNumber, chainAssetCode) {
@@ -225,8 +228,8 @@ export class Session {
 
     let requiredParams = ['bifrostURL', 'horizonURL', 'assetCode', 'price'];
     for (let param of requiredParams) {
-      if (params[param] == undefined) {
-        throw new Error(`params.${param} required`);
+      if (typeof params[param] != 'string') {
+        throw new Error(`params.${param} required and must be of type 'string'`);
       }
     }
   }

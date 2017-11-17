@@ -53,7 +53,7 @@
     keypair = params.keypair;
   })
 
-  function onEvent(event) {
+  function onEvent(event, data) {
     if (event == Bifrost.TransactionReceivedEvent) {
       setStatus("Transaction received, creating account...", 20)
     } else if (event == Bifrost.AccountCreatedEvent) {
@@ -64,6 +64,10 @@
       setStatus("Account credited, exchanging...", 80)
     } else if (event == Bifrost.PurchasedEvent) {
       setStatus("Congrats! TOKE purchased. Your Stellar keys: <pre>Public key: "+keypair.publicKey()+"\nSecret key: "+keypair.secret()+"</pre>", 100);
+    }
+     else if (event == Bifrost.PurchasedEvent) {
+      console.error(data);
+      setStatus("Error!", 100);
     }
   }
 

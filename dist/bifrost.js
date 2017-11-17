@@ -751,8 +751,10 @@ var Bifrost =
 	var AccountCreditedEvent = "account_credited";
 	exports.AccountCreditedEvent = AccountCreditedEvent;
 	var PurchasedEvent = "purchased";
-
 	exports.PurchasedEvent = PurchasedEvent;
+	var ErrorEvent = "purchased";
+
+	exports.ErrorEvent = ErrorEvent;
 	var ChainBitcoin = 'bitcoin';
 	var ChainEthereum = 'ethereum';
 
@@ -845,6 +847,8 @@ var Bifrost =
 	        return _this2.horizon.submitTransaction(transaction);
 	      }).then(function () {
 	        onEvent(TrustLinesCreatedEvent);
+	      })['catch'](function (e) {
+	        return onEvent(ErrorEvent, e);
 	      });
 	    }
 	  }, {
@@ -873,6 +877,8 @@ var Bifrost =
 	      }).then(function (account) {
 	        _this3._onPurchasedRecoveryTransactions(account);
 	        onEvent(PurchasedEvent);
+	      })['catch'](function (e) {
+	        return onEvent(ErrorEvent, e);
 	      });
 	    }
 	  }, {
@@ -1006,8 +1012,8 @@ var Bifrost =
 	        for (var _iterator2 = requiredParams[Symbol.iterator](), _step2; !(_iteratorNormalCompletion2 = (_step2 = _iterator2.next()).done); _iteratorNormalCompletion2 = true) {
 	          var param = _step2.value;
 
-	          if (params[param] == undefined) {
-	            throw new Error('params.' + param + ' required');
+	          if (typeof params[param] != 'string') {
+	            throw new Error('params.' + param + ' required and must be of type \'string\'');
 	          }
 	        }
 	      } catch (err) {
