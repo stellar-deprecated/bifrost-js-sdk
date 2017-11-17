@@ -51,7 +51,10 @@
     setStatus("Waiting for a transaction...", 10);
     document.getElementById("address").innerText = params.address;
     keypair = params.keypair;
-  })
+  }).catch(err => {
+    setStatus("Error", 0);
+    console.error(err);
+  });
 
   function onEvent(event, data) {
     if (event == Bifrost.TransactionReceivedEvent) {
@@ -64,10 +67,9 @@
       setStatus("Account credited, exchanging...", 80)
     } else if (event == Bifrost.PurchasedEvent) {
       setStatus("Congrats! TOKE purchased. Your Stellar keys: <pre>Public key: "+keypair.publicKey()+"\nSecret key: "+keypair.secret()+"</pre>", 100);
-    }
-     else if (event == Bifrost.PurchasedEvent) {
+    } else if (event == Bifrost.ErrorEvent) {
+      setStatus("Error!", 0);
       console.error(data);
-      setStatus("Error!", 100);
     }
   }
 

@@ -7,7 +7,7 @@ export const AccountCreatedEvent = "account_created"
 export const TrustLinesCreatedEvent = "trust_lines_created"
 export const AccountCreditedEvent = "account_credited"
 export const PurchasedEvent = "purchased"
-export const ErrorEvent = "purchased"
+export const ErrorEvent = "error"
 
 const ChainBitcoin = 'bitcoin';
 const ChainEthereum = 'ethereum';
@@ -115,7 +115,7 @@ export class Session {
       .then(() => this.horizon.loadAccount(this.keypair.publicKey()))
       .then(account => {
         this._onPurchasedRecoveryTransactions(account);
-        onEvent(PurchasedEvent)
+        onEvent(PurchasedEvent);
       })
       .catch(e => onEvent(ErrorEvent, e));
   }
@@ -151,28 +151,32 @@ export class Session {
   }
 
   _onAccountCreditedRecoveryTransactions(currentSequenceNumber, chainAssetCode, amount) {
-    // Fail after change_trust and BTC/ETH received
+    // Fail after change_trust and BTC/ETH received. We're creating two transactions:
+    // - First, if c operation wasn't even sent.
+    // - Second, if _onAccountCreditedRecoveryTransactions operation failed.
     var account = new Account(this.keypair.publicKey(), currentSequenceNumber);
-    var transaction = new TransactionBuilder(account)
-      .addOperation(Operation.payment({
-        destination: this.params.issuingPublicKey,
-        asset: new Asset(chainAssetCode, this.params.issuingPublicKey),
-        amount: amount
-      }))
-      .addOperation(Operation.changeTrust({
-        asset: new Asset(chainAssetCode, this.params.issuingPublicKey),
-        limit: "0"
-      }))
-      .addOperation(Operation.changeTrust({
-        asset: new Asset(this.params.assetCode, this.params.issuingPublicKey),
-        limit: "0"
-      }))
-      .addOperation(Operation.accountMerge({
-        destination: this.params.issuingPublicKey
-      }))
-      .build();
-    transaction.sign(this.keypair);
-    this._submitRecovery(transaction);
+    for (let i = 0; i < 2; i++) {
+      var transaction = new TransactionBuilder(account)
+        .addOperation(Operation.payment({
+          destination: this.params.issuingPublicKey,
+          asset: new Asset(chainAssetCode, this.params.issuingPublicKey),
+          amount: amount
+        }))
+        .addOperation(Operation.changeTrust({
+          asset: new Asset(chainAssetCode, this.params.issuingPublicKey),
+          limit: "0"
+        }))
+        .addOperation(Operation.changeTrust({
+          asset: new Asset(this.params.assetCode, this.params.issuingPublicKey),
+          limit: "0"
+        }))
+        .addOperation(Operation.accountMerge({
+          destination: this.params.issuingPublicKey
+        }))
+        .build();
+      transaction.sign(this.keypair);
+      this._submitRecovery(transaction);
+    }
   }
 
   _onPurchasedRecoveryTransactions(account) {

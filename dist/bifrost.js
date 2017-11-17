@@ -752,7 +752,7 @@ var Bifrost =
 	exports.AccountCreditedEvent = AccountCreditedEvent;
 	var PurchasedEvent = "purchased";
 	exports.PurchasedEvent = PurchasedEvent;
-	var ErrorEvent = "purchased";
+	var ErrorEvent = "error";
 
 	exports.ErrorEvent = ErrorEvent;
 	var ChainBitcoin = 'bitcoin';
@@ -909,23 +909,27 @@ var Bifrost =
 	  }, {
 	    key: '_onAccountCreditedRecoveryTransactions',
 	    value: function _onAccountCreditedRecoveryTransactions(currentSequenceNumber, chainAssetCode, amount) {
-	      // Fail after change_trust and BTC/ETH received
+	      // Fail after change_trust and BTC/ETH received. We're creating two transactions:
+	      // - First, if c operation wasn't even sent.
+	      // - Second, if _onAccountCreditedRecoveryTransactions operation failed.
 	      var account = new _stellarSdk.Account(this.keypair.publicKey(), currentSequenceNumber);
-	      var transaction = new _stellarSdk.TransactionBuilder(account).addOperation(_stellarSdk.Operation.payment({
-	        destination: this.params.issuingPublicKey,
-	        asset: new _stellarSdk.Asset(chainAssetCode, this.params.issuingPublicKey),
-	        amount: amount
-	      })).addOperation(_stellarSdk.Operation.changeTrust({
-	        asset: new _stellarSdk.Asset(chainAssetCode, this.params.issuingPublicKey),
-	        limit: "0"
-	      })).addOperation(_stellarSdk.Operation.changeTrust({
-	        asset: new _stellarSdk.Asset(this.params.assetCode, this.params.issuingPublicKey),
-	        limit: "0"
-	      })).addOperation(_stellarSdk.Operation.accountMerge({
-	        destination: this.params.issuingPublicKey
-	      })).build();
-	      transaction.sign(this.keypair);
-	      this._submitRecovery(transaction);
+	      for (var i = 0; i < 2; i++) {
+	        var transaction = new _stellarSdk.TransactionBuilder(account).addOperation(_stellarSdk.Operation.payment({
+	          destination: this.params.issuingPublicKey,
+	          asset: new _stellarSdk.Asset(chainAssetCode, this.params.issuingPublicKey),
+	          amount: amount
+	        })).addOperation(_stellarSdk.Operation.changeTrust({
+	          asset: new _stellarSdk.Asset(chainAssetCode, this.params.issuingPublicKey),
+	          limit: "0"
+	        })).addOperation(_stellarSdk.Operation.changeTrust({
+	          asset: new _stellarSdk.Asset(this.params.assetCode, this.params.issuingPublicKey),
+	          limit: "0"
+	        })).addOperation(_stellarSdk.Operation.accountMerge({
+	          destination: this.params.issuingPublicKey
+	        })).build();
+	        transaction.sign(this.keypair);
+	        this._submitRecovery(transaction);
+	      }
 	    }
 	  }, {
 	    key: '_onPurchasedRecoveryTransactions',
