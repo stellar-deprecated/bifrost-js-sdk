@@ -22,8 +22,9 @@ Name | Possible Values | Description
 `issuingPublicKey` | Stellar public key | Public key of issuing account
 `assetCode` | `string` | Asset code of token to sell, ex. `TOKE`
 `price` | `string` | Maximum price of 1 `assetCode` token (in `BTC` or `ETH` depending which `start*` method is used)
-`bifrostURL` | `string` | URL of Bifrost server
-`horizonURL` | `string` | URL of Horizon server (_do not use SDF's servers!_)
+`bifrostURL`  | `string`  | URL of Bifrost server
+`horizonURL`  | `string`  | URL of Horizon server (_do not use SDF's servers!_)
+`preSaleMode` | `boolean` | (Optional) If set to `true`, tokens will not be sent to immediately to the user
 
 Example: 
 ```js
@@ -34,6 +35,7 @@ var params = {
   assetCode: 'TOKE',
   price: '1',
   issuingPublicKey: 'GDGVTKSEXWB4VFTBDWCBJVJZLIY6R3766EHBZFIGK2N7EQHVV5UTA63C',
+  preSaleMode: false,
 };
 
 var session = new Bifrost.Session(params);
