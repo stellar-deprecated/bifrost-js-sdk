@@ -24,7 +24,7 @@ Name | Possible Values | Description
 `price` | `string` | Maximum price of 1 `assetCode` token (in `BTC` or `ETH` depending which `start*` method is used)
 `bifrostURL`  | `string`  | URL of Bifrost server
 `horizonURL`  | `string`  | URL of Horizon server (_do not use SDF's servers!_)
-`preSaleMode` | `boolean` | (Optional) If set to `true`, tokens will not be sent to immediately to the user
+`preSaleMode` | `boolean` | (Optional) If set to `true`, BTC/ETH tokens will not be traded to `assetCode`. User will end up with BTC/ETH in their Stellar account.
 
 Example: 
 ```js
