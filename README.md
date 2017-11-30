@@ -82,8 +82,8 @@ session.startEthereum(onEvent).then({address, keypair} => {
 `Bifrost.AccountCreatedEvent` | _none_ | Sent when account is created
 `Bifrost.TrustLinesCreatedEvent` | _none_ | Sent when trust line is created
 `Bifrost.AccountCreditedEvent` | _none_ | Sent when account is credited
-`Bifrost.PurchasedEvent` | _none_ | Sent when token is purchased
-`Bifrost.ErrorEvent` | `Error` object | Sent when asynchronous, nonrecoverable error occured
+`Bifrost.PurchasedEvent` (This will not be triggered in `preSaleMode`) | _none_ | Sent when token is purchased
+`Bifrost.ErrorEvent` | `Error` object | Sent when asynchronous, non-recoverable error occured
 
 Example:
 ```js
