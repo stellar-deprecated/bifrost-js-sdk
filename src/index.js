@@ -107,6 +107,10 @@ export class Session {
       .then(sourceAccount => {
         this._onAccountCreditedRecoveryTransactions(sourceAccount.sequenceNumber(), assetCode, amount);
 
+        if(this.params.preSaleMode){
+          return;
+        }
+
         var transaction = new TransactionBuilder(sourceAccount)
           .addOperation(Operation.manageOffer({
             selling: new Asset(assetCode, this.params.issuingPublicKey),
