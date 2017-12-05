@@ -9,6 +9,8 @@ export const AccountCreditedEvent = "account_credited"
 export const PurchasedEvent = "purchased"
 export const ErrorEvent = "error"
 
+const ProtocolVersion = 1;
+
 const ChainBitcoin = 'bitcoin';
 const ChainEthereum = 'ethereum';
 
@@ -45,6 +47,10 @@ export class Session {
         .then(response => {
           if (response.data.chain != chain) {
             return reject("Invalid chain");
+          }
+
+          if (response.data.protocol_version != ProtocolVersion) {
+            return reject("Invalid protocol_version. Make sure Bifrost server is using the same protocol version.");
           }
 
           var address = response.data.address;
