@@ -1,0 +1,13 @@
+language: node_js
+node_js: 8
+script: gulp
+deploy:
+  provider: releases
+  api_key:
+    secure: "k90st+fEZplM84rEy/VQrHFopVRHiyhKIeAY9ZG9y9R7BR49iOeiCCZYSGvbeAso71dtm7P+FT9jevWLuTSl2tlHpcF2Ibjm2TcPGI0bYnnc0XW+TUJxL4Xpcc8wmbojJEv92qpIzYgqQk9ZgQpBlBlmLNTF8ra9BBZVS9OYMrwYyEuD2Yv9SMldKsvK9oRt44cP9CcnQdwCzuTFdb4nIk8rdMUbomD3t2ekfF5zAf70AO3OkzF/uS1B0nblPse1+o6LrFXjOP5uKG0MFiFH97UIKm/XXK8tuy53Mp5GpCGRmGzYRid0th0IwjrZMwCSgnkwKEPZsomN34Vum2WHDnai8Ln365u7oGA3k42rG1bo/Q3KIaeH6OvxXcOotIKler4HPniuk+H5Fi638Clglv0KGflIXXDywXjeUk2ODW+MZqqUNeZyil/BsIh7zb37Bt3Gcl8Z5gyaFk5XAV1K7ukdFcHgVjrhqzpjGtjf5ABQ3ztAGUBFk8VkPPA0gpVty+cpOVRsNPRmXLsLZFucPCiQpNa4cEnldnY/kh3iZAoTe9LZonPAzRbeI1dxeP8eWfS84EfnSRM/CNU0d66SyfdbC7QMDQH3OgD1EW948D2a4k8QMuNmfhivOw6/NfMFLEi9FSRnzeZZQrvtXF7zsUwBDSC4Ay+U5LHY7Jar60o="
+  file:
+    - "dist/bifrost.js"
+    - "dist/bifrost.min.js"
+  skip_cleanup: true
+  on:
+    tags: true
