@@ -1,6 +1,9 @@
 var fs = require('fs');
 var gulp = require('gulp');
-var plugins = require('gulp-load-plugins')();
+var guglify = require('gulp-uglify');
+var grename = require('gulp-rename');
+var ginsert = require('gulp-insert');
+var gwebpack = require('gulp-webpack');
 var webpack = require('webpack');
 
 gulp.task('default', ['build']);
@@ -15,7 +18,7 @@ gulp.task('build', function() {
 
 function buildLibrary(target) {
   return gulp.src('src/index.js')
-    .pipe(plugins.webpack({
+    .pipe(gwebpack({
       output: {
         library: 'Bifrost',
         libraryTarget: target
@@ -33,14 +36,14 @@ function buildLibrary(target) {
       ]
     }))
     // Add EventSource polyfill for IE11 and Edge
-    .pipe(plugins.insert.prepend(fs.readFileSync('./node_modules/event-source-polyfill/src/eventsource.js')))
-    .pipe(plugins.rename('bifrost.js'))
+    .pipe(ginsert.prepend(fs.readFileSync('./node_modules/event-source-polyfill/src/eventsource.js')))
+    .pipe(grename('bifrost.js'))
     .pipe(gulp.dest('dist'))
-    .pipe(plugins.uglify({
+    .pipe(guglify({
       output: {
         ascii_only: true
       }
     }))
-    .pipe(plugins.rename('bifrost.min.js'))
+    .pipe(grename('bifrost.min.js'))
     .pipe(gulp.dest('dist'));
 }
