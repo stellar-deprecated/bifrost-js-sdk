@@ -5,9 +5,13 @@ JS SDK for [Bifrost](https://github.com/stellar/go/tree/master/services/bifrost)
 ## Building
 
 ```shell
-npm install gulp-cli -g
-npm install
-gulp
+yarn install
+
+# to build for browser
+yarn gulp
+
+# to build for node (umd)
+yarn gulp build:node
 ```
 Build result is located in /dist
 
