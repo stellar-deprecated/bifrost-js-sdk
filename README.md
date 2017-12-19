@@ -13,12 +13,16 @@ yarn gulp
 # to build for node (umd)
 yarn gulp build:node
 ```
-Build result is located in /dist
 
 ## Usage
 
+browser:
 ```html
 <script src="bifrost.min.js"></script>
+```
+node:
+```javascript
+import * as Bifrost from "bifrost.js"
 ```
 
 ## API
