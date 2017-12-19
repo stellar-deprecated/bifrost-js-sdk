@@ -5,14 +5,27 @@ var webpack = require('webpack');
 
 gulp.task('default', ['build']);
 
+gulp.task('build:node', function() {
+  buildLibrary('umd');
+});
+
 gulp.task('build', function() {
+  buildLibrary('var');
+});
+
+function buildLibrary(target) {
   return gulp.src('src/index.js')
     .pipe(plugins.webpack({
-      output: {library: 'Bifrost'},
+      output: {
+        library: 'Bifrost',
+        libraryTarget: target
+      },
       module: {
-        loaders: [
-          { test: /\.js$/, exclude: /node_modules/, loader: 'babel-loader'}
-        ],
+        loaders: [{
+          test: /\.js$/,
+          exclude: /node_modules/,
+          loader: 'babel-loader'
+        }],
       },
       plugins: [
         // Ignore native modules (ed25519)
@@ -30,4 +43,4 @@ gulp.task('build', function() {
     }))
     .pipe(plugins.rename('bifrost.min.js'))
     .pipe(gulp.dest('dist'));
-});
+}
