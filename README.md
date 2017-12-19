@@ -2,6 +2,15 @@
 
 JS SDK for [Bifrost](https://github.com/stellar/go/tree/master/services/bifrost).
 
+## Building
+
+```shell
+npm install gulp-cli -g
+npm install
+gulp
+```
+Build result is located in /dist
+
 ## Usage
 
 ```html
@@ -26,7 +35,7 @@ Name | Possible Values | Description
 `horizonURL`  | `string`  | URL of Horizon server (_do not use SDF's servers!_)
 `preSaleMode` | `boolean` | (Optional) If set to `true`, BTC/ETH tokens will not be traded to `assetCode`. User will end up with BTC/ETH in their Stellar account.
 
-Example: 
+Example:
 ```js
 var params = {
   network: 'test',
