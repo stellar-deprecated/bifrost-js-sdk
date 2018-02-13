@@ -18,7 +18,13 @@ export class Session {
   constructor(params) {
     this._checkParams(params);
     this.params = params;
-    this.horizon = new HorizonServer(this.params.horizonURL);
+
+    let horizonOpts = {};
+    if (params.horizonAllowHttp !== undefined) {
+      horizonOpts.allowHttp = params.horizonAllowHttp
+    }
+    this.horizon = new HorizonServer(this.params.horizonURL, horizonOpts);
+    
     if (params.network == 'test') {
       Network.useTestNetwork();
     } else {
