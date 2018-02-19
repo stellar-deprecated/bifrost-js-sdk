@@ -27,7 +27,7 @@ Name | Possible Values | Description
 `horizonAllowHttp` | `boolean` | (Optional) If set to `true` allows HTTP connections to Horizon server. Useful for testing.
 `preSaleMode` | `boolean` | (Optional) If set to `true`, BTC/ETH tokens will not be traded to `assetCode`. User will end up with BTC/ETH in their Stellar account.
 
-Example: 
+Example:
 ```js
 var params = {
   network: 'test',
@@ -74,9 +74,25 @@ session.startEthereum(onEvent).then({address, keypair} => {
 
 `onEvent` description can be found in the section below.
 
+### `Bifrost.Session.startLitecoin(onEvent) => Promise`
+
+Starts Litecoin session and returns a promise that resolves with Litecoin address where to send funds and Stellar keypair. Once the session is started, no other session can be created using the same object. You need to create a new one.
+
+Example:
+```js
+session.startLitecoin(onEvent).then({address, keypair} => {
+  document.getElementById("address").innerText = "Waiting for a transaction...";
+  document.getElementById("address").innerText = address;
+  document.getElementById("public-key").innerText = keypair.publicKey();
+  document.getElementById("secret").innerText = keypair.secret();
+})
+```
+
+`onEvent` description can be found in the section below.
+
 ### `onEvent(event, data)`
 
-`onEvent` function you pass to `startBitcoin` or `startEthereum` function accepts one parameter `event` described below:
+`onEvent` function you pass to `startBitcoin` or `startEthereum` or `startLitecoin` function accepts one parameter `event` described below:
 
 `event` | `data` | Description
 -|-|-
