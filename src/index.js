@@ -13,6 +13,7 @@ const ProtocolVersion = 1;
 
 const ChainBitcoin = 'bitcoin';
 const ChainEthereum = 'ethereum';
+const ChainLitecoin = 'litecoin';
 
 export class Session {
   constructor(params) {
@@ -24,7 +25,7 @@ export class Session {
       horizonOpts.allowHttp = params.horizonAllowHttp
     }
     this.horizon = new HorizonServer(this.params.horizonURL, horizonOpts);
-    
+
     if (params.network == 'test') {
       Network.useTestNetwork();
     } else {
@@ -39,6 +40,10 @@ export class Session {
 
   startEthereum(onEvent) {
     return this._start(ChainEthereum, onEvent);
+  }
+
+  startLitecoin(onEvent) {
+    return this._start(ChainLitecoin, onEvent);
   }
 
   _start(chain, onEvent) {
@@ -62,7 +67,7 @@ export class Session {
           var address = response.data.address;
           resolve({address: address, keypair: this.keypair});
 
-          var source = new EventSource(`${this.params.bifrostURL}/events?stream=${address}`);
+          var source = new EventSource(`${this.params.bifrostURL}/events?stream=${address}&chain=${chain}`);
           source.addEventListener('transaction_received', e => onEvent(TransactionReceivedEvent), false);
           source.addEventListener('account_created', e => this._onAccountCreated(onEvent, chain), false);
           source.addEventListener('account_credited', e => {
@@ -83,6 +88,8 @@ export class Session {
       chainAssetCode = 'BTC';
     } else if (chain == ChainEthereum) {
       chainAssetCode = 'ETH';
+    } else if (chain == ChainLitecoin) {
+      chainAssetCode = 'LTC';
     }
 
     // Create trust lines
