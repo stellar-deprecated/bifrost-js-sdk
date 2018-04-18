@@ -19,24 +19,17 @@ Represents Bifrost session with `params` parameters.
 Name | Possible Values | Description
 -|-|-
 `network` | `test` or `live` | Stellar network to use
-`issuingPublicKey` | Stellar public key | Public key of issuing account
-`assetCode` | `string` | Asset code of token to sell, ex. `TOKE`
-`price` | `string` | Maximum price of 1 `assetCode` token (in `BTC` or `ETH` depending which `start*` method is used)
 `bifrostURL`  | `string`  | URL of Bifrost server
 `horizonURL`  | `string`  | URL of Horizon server (_do not use SDF's servers!_)
 `horizonAllowHttp` | `boolean` | (Optional) If set to `true` allows HTTP connections to Horizon server. Useful for testing.
-`preSaleMode` | `boolean` | (Optional) If set to `true`, BTC/ETH tokens will not be traded to `assetCode`. User will end up with BTC/ETH in their Stellar account.
+`recoveryPublicKey` | `string` | Public key of Stellar account where lumens will be sent in case of failures. (Optional but recommended.)
 
 Example: 
 ```js
 var params = {
   network: 'test',
   horizonURL: 'https://horizon-testnet.stellar.org',
-  bifrostURL: 'http://localhost:8000',
-  assetCode: 'TOKE',
-  price: '1',
-  issuingPublicKey: 'GDGVTKSEXWB4VFTBDWCBJVJZLIY6R3766EHBZFIGK2N7EQHVV5UTA63C',
-  preSaleMode: false,
+  bifrostURL: 'http://localhost:8000'
 };
 
 var session = new Bifrost.Session(params);
@@ -80,28 +73,29 @@ session.startEthereum(onEvent).then({address, keypair} => {
 
 `event` | `data` | Description
 -|-|-
+`Bifrost.TransactionReceivedEvent` | _none_ | Sent when BTC/ETH transaction is received
 `Bifrost.AccountCreatedEvent` | _none_ | Sent when account is created
-`Bifrost.TrustLinesCreatedEvent` | _none_ | Sent when trust line is created
-`Bifrost.AccountCreditedEvent` | _none_ | Sent when account is credited
-`Bifrost.PurchasedEvent` (This will not be triggered in `preSaleMode`) | _none_ | Sent when token is purchased
+`Bifrost.AccountConfiguredEvent` | _none_ | Sent when account has been configured
+`Bifrost.ExchangedEvent` | _none_ | Sent when tokens have been exchanged
+`Bifrost.ExchangedTimelockedEvent` | `{transaction}` | Sent when tokens have been exchanged but access to account is locked (`lock_unix_timestamp` config config parameter in Bifrost). `data` object contains `transaction` XDR that unlocks account after specified time.
 `Bifrost.ErrorEvent` | `Error` object | Sent when asynchronous, non-recoverable error occured
 
 Example:
 ```js
 function onEvent(event, data) {
   if (event == Bifrost.TransactionReceivedEvent) {
-    setStatus("Transaction received, creating account...");
+    setStatus("Transaction received, creating account...", 20)
   } else if (event == Bifrost.AccountCreatedEvent) {
-    setStatus("Account created, creating trust lines...");
-  } else if (event == Bifrost.TrustLinesCreatedEvent) {
-    setStatus("Trust lines created, waiting for tokens...");
-  } else if (event == Bifrost.AccountCreditedEvent) {
-    setStatus("Account credited, exchanging...");
-  } else if (event == Bifrost.PurchasedEvent) {
-    setStatus("Congrats! TOKE purchased.");
+    setStatus("Account created, configuring account...", 40)
+  } else if (event == Bifrost.AccountConfiguredEvent) {
+    setStatus("Account configured, waiting for tokens...", 60)
+  } else if (event == Bifrost.ExchangedEvent) {
+    setStatus("Congrats! TOKE purchased. Your Stellar keys: <pre>Public key: "+keypair.publicKey()+"\nSecret key: "+keypair.secret()+"</pre>", 100);
+  } else if (event == Bifrost.ExchangedTimelockedEvent) {
+    setStatus("Congrats! TOKE purchased but will be locked. Your Stellar keys: <pre>Public key: "+keypair.publicKey()+"\nSecret key: "+keypair.secret()+"</pre>\nUnlock transaction: <pre>"+data.transaction+"</pre>", 100);
   } else if (event == Bifrost.ErrorEvent) {
-    setStatus("Error!");
-    // Send `data` to the log server.
+    setStatus("Error!", 0);
+    // Sent data to the log server.
   }
 }
 ```
