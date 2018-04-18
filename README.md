@@ -42,7 +42,7 @@ Starts Bitcoin session and returns a promise that resolves with Bitcoin address 
 Example:
 ```js
 session.startBitcoin(onEvent).then({address, keypair} => {
-  document.getElementById("address").innerText = "Waiting for a transaction...";
+  document.getElementById("status").innerText = "Waiting for a transaction...";
   document.getElementById("address").innerText = address;
   document.getElementById("public-key").innerText = keypair.publicKey();
   document.getElementById("secret").innerText = keypair.secret();
@@ -58,7 +58,7 @@ Starts Ethereum session and returns a promise that resolves with Ethereum addres
 Example:
 ```js
 session.startEthereum(onEvent).then({address, keypair} => {
-  document.getElementById("address").innerText = "Waiting for a transaction...";
+  document.getElementById("status").innerText = "Waiting for a transaction...";
   document.getElementById("address").innerText = address;
   document.getElementById("public-key").innerText = keypair.publicKey();
   document.getElementById("secret").innerText = keypair.secret();
