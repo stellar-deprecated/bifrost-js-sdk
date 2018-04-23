@@ -2,10 +2,27 @@
 
 JS SDK for [Bifrost](https://github.com/stellar/go/tree/master/services/bifrost).
 
+## Building
+
+```shell
+yarn install
+
+# to build for browser
+yarn gulp
+
+# to build for node (umd)
+yarn gulp build:node
+```
+
 ## Usage
 
+browser:
 ```html
 <script src="bifrost.min.js"></script>
+```
+node:
+```javascript
+import * as Bifrost from "bifrost.js"
 ```
 
 ## API
@@ -24,7 +41,7 @@ Name | Possible Values | Description
 `horizonAllowHttp` | `boolean` | (Optional) If set to `true` allows HTTP connections to Horizon server. Useful for testing.
 `recoveryPublicKey` | `string` | Public key of Stellar account where lumens will be sent in case of failures. (Optional but recommended.)
 
-Example: 
+Example:
 ```js
 var params = {
   network: 'test',
